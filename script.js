@@ -4,33 +4,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const allowedTags = ['STRONG', 'EM', 'U', 'A', 'P', 'H1', 'H2', 'H3', 'H4', 'BR'];
 
+    // 🧼 Hàm làm sạch các thẻ không được phép
     function cleanNode(node) {
         const children = Array.from(node.childNodes);
         for (let child of children) {
             if (child.nodeType === Node.ELEMENT_NODE) {
+                // Loại bỏ các thẻ không nằm trong danh sách cho phép
                 if (!allowedTags.includes(child.tagName)) {
                     const fragment = document.createDocumentFragment();
                     while (child.firstChild) {
                         fragment.appendChild(child.firstChild);
                     }
                     node.replaceChild(fragment, child);
-                    cleanNode(node);
+                    cleanNode(node); // Làm sạch tiếp
                 } else {
+                    // Loại bỏ toàn bộ thuộc tính (trừ href của <a>)
                     [...child.attributes].forEach(attr => {
                         if (child.tagName === 'A' && attr.name === 'href') return;
                         child.removeAttribute(attr.name);
                     });
-                    cleanNode(child);
+                    cleanNode(child); // Tiếp tục kiểm tra bên trong
                 }
             }
         }
     }
 
+    // ✅ Hàm chuyển contenteditable HTML thành HTML sạch và chuẩn
     function convertToHTMLFromContentEditable(htmlContent) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlContent;
 
-        cleanNode(tempDiv); // 🧹 Clean ngay tại đây
+        cleanNode(tempDiv); // Dọn sạch nội dung
 
         const lines = [];
         for (const child of tempDiv.childNodes) {
@@ -44,6 +48,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (lineHTML) {
+                // Heading nhận dạng từ đầu dòng
                 const headingMatch = lineHTML.match(/^(h\s*([1-4])[:\s])|^(heading\s*([1-4]))[:\s]?/i);
                 if (headingMatch) {
                     const level = headingMatch[2] || headingMatch[4];
@@ -58,34 +63,44 @@ document.addEventListener('DOMContentLoaded', function () {
         return lines.join('\n');
     }
 
+    // 📥 Cập nhật kết quả HTML bên phải
     function updateOutputHTML() {
         const html = convertToHTMLFromContentEditable(inputDiv.innerHTML);
         outputHTML.value = html;
     }
 
+    // 👂 Theo dõi mọi thao tác người dùng
     inputDiv.addEventListener('input', updateOutputHTML);
+    inputDiv.addEventListener('paste', () => {
+        setTimeout(updateOutputHTML, 10); // Đợi paste xong rồi mới xử lý
+    });
+    inputDiv.addEventListener('keyup', updateOutputHTML);
 
-    // Các nút định dạng
+    // 🔘 Hàm định dạng khi nhấn nút
     window.applyFormat = function (format) {
         inputDiv.focus();
-        if (format === 'uppercase' || format === 'capitalize') {
-            const sel = window.getSelection();
-            if (!sel.rangeCount) return;
-            const range = sel.getRangeAt(0);
-            const selected = range.toString();
-            if (!selected) return;
 
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+
+        const range = selection.getRangeAt(0);
+        const selectedText = selection.toString();
+        if (!selectedText) return;
+
+        // Chuyển đổi kiểu
+        if (format === 'uppercase' || format === 'capitalize') {
             const modified = format === 'uppercase'
-                ? selected.toUpperCase()
-                : selected.replace(/\b\w/g, c => c.toUpperCase());
+                ? selectedText.toUpperCase()
+                : selectedText.replace(/\b\w/g, c => c.toUpperCase());
 
             document.execCommand('insertText', false, modified);
         } else if (format === 'bold') {
-            document.execCommand('bold', false, null);
+            document.execCommand('formatBlock', false, 'strong');
+            document.execCommand('bold', false, null); // Dùng strong nhưng giữ hỗ trợ
         } else if (format === 'italic') {
-            document.execCommand('italic', false, null);
+            document.execCommand('italic', false, null); // Chuyển thành <em> sau khi clean
         } else if (format === 'link') {
-            const url = prompt("Nhập URL:", "https://");
+            const url = prompt("Nhập URL liên kết:", "https://");
             if (!url) return;
             document.execCommand('createLink', false, url);
         }
