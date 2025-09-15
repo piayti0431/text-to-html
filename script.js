@@ -1,147 +1,79 @@
 // script.js
 
-// DOM element references
 const inputDiv = document.getElementById("inputText");
-const outputTextarea = document.getElementById("outputHTML");
+const outputArea = document.getElementById("outputHTML");
 
-// Convert contenteditable input to clean HTML
-function updateOutputHTML() {
-    let html = inputDiv.innerHTML;
+function updateHTML() {
+    let html = "";
+    const childNodes = inputDiv.childNodes;
 
-    // Clean up content and convert to semantic HTML
-    const tempDiv = document.createElement("div");
-    tempDiv.innerHTML = html;
-
-    // Convert common formatting
-    cleanFormatting(tempDiv);
-
-    // Ensure semantic tags for headers/lists
-    detectHeadings(tempDiv);
-    wrapListItems(tempDiv);
-
-    // Return cleaned innerHTML
-    outputTextarea.value = tempDiv.innerHTML.trim();
-}
-
-// Wrap headings if starting with "heading 1", "heading 2", etc.
-function detectHeadings(container) {
-    const lines = container.innerHTML.split(/<br\s*\/?>(?!<br)/i);
-    container.innerHTML = "";
-
-    lines.forEach(line => {
-        const match = line.match(/^heading\s?(\d)\s?(.*)/i);
-        if (match) {
-            const level = match[1];
-            const text = match[2];
-            container.innerHTML += `<h${level}><strong>${text}</strong></h${level}>`;
-        } else {
-            container.innerHTML += `<p>${line.trim()}</p>`;
+    childNodes.forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const lines = node.textContent.split("\n");
+            lines.forEach((line) => {
+                if (line.trim() !== "") {
+                    html += `<p>${escapeHTML(line)}</p>`;
+                }
+            });
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            html += node.outerHTML;
         }
     });
+
+    // Clean up nested block tags like <div><p>text</p></div>
+    html = html.replace(/<div><p>/g, '<p>')
+               .replace(/<\/p><\/div>/g, '</p>');
+
+    outputArea.value = html;
 }
 
-// Format bold, italic, etc.
-function cleanFormatting(container) {
-    const replaceTags = {
-        B: "strong",
-        I: "em",
-        STRONG: "strong",
-        EM: "em"
-    };
-
-    Object.entries(replaceTags).forEach(([oldTag, newTag]) => {
-        const elements = container.getElementsByTagName(oldTag);
-        while (elements.length > 0) {
-            const el = elements[0];
-            const newEl = document.createElement(newTag);
-            newEl.innerHTML = el.innerHTML;
-            el.parentNode.replaceChild(newEl, el);
-        }
-    });
+function escapeHTML(text) {
+    const div = document.createElement("div");
+    div.innerText = text;
+    return div.innerHTML;
 }
 
-// Convert <p><li>...</li></p> to <ul><li>...</li></ul>
-function wrapListItems(container) {
-    const lis = container.querySelectorAll("li");
-    if (lis.length > 0) {
-        const ul = document.createElement("ul");
-        lis.forEach(li => {
-            ul.appendChild(li.cloneNode(true));
-            li.remove();
-        });
-        container.appendChild(ul);
-    }
-}
+inputDiv.addEventListener("input", updateHTML);
 
-// Apply formatting
-function applyFormat(type) {
-    document.execCommand("styleWithCSS", false, false);
-
-    if (type === "bold") {
-        document.execCommand("bold", false, null);
-    } else if (type === "italic") {
-        document.execCommand("italic", false, null);
-    } else if (type === "uppercase") {
-        changeCase("upper");
-    } else if (type === "capitalize") {
-        changeCase("capitalize");
-    } else if (type === "link") {
-        const url = prompt("Nhập URL:");
-        if (url) {
-            document.execCommand("createLink", false, url);
-        }
-    }
-
-    updateOutputHTML();
-}
-
-// Change text case
-function changeCase(mode) {
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    const selectedText = range.toString();
-    if (!selectedText) return;
-
-    let newText = mode === "upper"
-        ? selectedText.toUpperCase()
-        : selectedText.replace(/\b\w/g, c => c.toUpperCase());
-
-    const span = document.createElement("span");
-    span.textContent = newText;
-    range.deleteContents();
-    range.insertNode(span);
-}
-
-// Custom button: insert H2
-function wrapWithHeading(level) {
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    const selectedText = range.toString();
-    if (!selectedText) return;
-
-    const wrapper = document.createElement(`h${level}`);
-    const strong = document.createElement("strong");
-    strong.textContent = selectedText;
-    wrapper.appendChild(strong);
-
-    range.deleteContents();
-    range.insertNode(wrapper);
-
-    updateOutputHTML();
-}
-
-// Convert pasted rich text
 inputDiv.addEventListener("paste", function (e) {
     e.preventDefault();
     const text = (e.clipboardData || window.clipboardData).getData("text/plain");
     document.execCommand("insertText", false, text);
-    setTimeout(updateOutputHTML, 0);
 });
 
-// Detect input changes
-inputDiv.addEventListener("input", updateOutputHTML);
-document.addEventListener("DOMContentLoaded", updateOutputHTML);
+function applyFormat(command, value = null) {
+    document.execCommand(command, false, value);
+    updateHTML();
+}
+
+function wrapWithHeading(level) {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+    const range = selection.getRangeAt(0);
+    const content = range.extractContents();
+    const heading = document.createElement(`h${level}`);
+    heading.appendChild(content);
+    range.insertNode(heading);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    updateHTML();
+}
+
+function wrapWithList() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    const content = range.extractContents();
+    const listItems = content.textContent
+        .split("\n")
+        .filter(line => line.trim() !== "")
+        .map(line => `<li>${escapeHTML(line)}</li>`)
+        .join("");
+
+    const ul = document.createElement("ul");
+    ul.innerHTML = listItems;
+    range.deleteContents();
+    range.insertNode(ul);
+    updateHTML();
+}
