@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputDiv = document.getElementById('inputText');
     const outputHTML = document.getElementById('outputHTML');
 
-    // Chuyển nội dung trực quan thành HTML chuẩn với <p>, <h1>... và giữ lại <b>, <i>, <a>
+    // Chuyển nội dung HTML thành đoạn HTML có thẻ <p>, <h1>..., giữ các thẻ quan trọng
     function convertToHTMLFromContentEditable(htmlContent) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlContent;
@@ -33,47 +33,91 @@ document.addEventListener('DOMContentLoaded', function () {
         return lines.join('\n');
     }
 
-    // Cập nhật kết quả HTML khi nhập
+    // Cập nhật ô HTML
     function updateOutputHTML() {
         const html = convertToHTMLFromContentEditable(inputDiv.innerHTML);
         outputHTML.value = html;
     }
 
+    // Gõ là cập nhật
     inputDiv.addEventListener('input', updateOutputHTML);
 
-    // Xử lý các nút định dạng văn bản
+    // Nút định dạng
     window.applyFormat = function (format) {
         const selection = window.getSelection();
         if (!selection.rangeCount) return;
 
         const range = selection.getRangeAt(0);
-        const selectedText = selection.toString();
+        const selectedText = range.toString();
         if (!selectedText) return;
 
+        let wrapper;
+
         if (format === 'uppercase') {
-            document.execCommand('insertText', false, selectedText.toUpperCase());
+            const span = document.createElement('span');
+            span.textContent = selectedText.toUpperCase();
+            wrapper = span;
         } else if (format === 'capitalize') {
-            const capitalized = selectedText.replace(/\b\w/g, c => c.toUpperCase());
-            document.execCommand('insertText', false, capitalized);
-        } else if (['bold', 'italic', 'link'].includes(format)) {
-            const tag = format === 'bold' ? 'b' :
-                        format === 'italic' ? 'i' :
-                        format === 'link' ? 'a' : null;
-
-            const newNode = document.createElement(tag);
-
-            if (format === 'link') {
-                const url = prompt("Nhập URL liên kết:", "https://");
-                if (!url) return;
-                newNode.setAttribute('href', url);
-            }
-
-            newNode.textContent = selectedText;
-            range.deleteContents();
-            range.insertNode(newNode);
+            const span = document.createElement('span');
+            span.textContent = selectedText.replace(/\b\w/g, c => c.toUpperCase());
+            wrapper = span;
+        } else if (format === 'bold') {
+            wrapper = document.createElement('strong');
+            wrapper.textContent = selectedText;
+        } else if (format === 'italic') {
+            wrapper = document.createElement('em');
+            wrapper.textContent = selectedText;
+        } else if (format === 'link') {
+            const url = prompt("Nhập URL:", "https://");
+            if (!url) return;
+            wrapper = document.createElement('a');
+            wrapper.href = url;
+            wrapper.textContent = selectedText;
         }
 
-        // Sau khi định dạng, cập nhật lại HTML
+        if (wrapper) {
+            range.deleteContents();
+            range.insertNode(wrapper);
+            range.setStartAfter(wrapper);
+            range.setEndAfter(wrapper);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            updateOutputHTML();
+        }
+    };
+
+    // Nút Clean: loại bỏ các thẻ không cần thiết (span, style, class, ...)
+    window.cleanInput = function () {
+        const temp = document.createElement('div');
+        temp.innerHTML = inputDiv.innerHTML;
+
+        const allowedTags = ['STRONG', 'EM', 'U', 'A', 'P', 'H1', 'H2', 'H3', 'H4', 'BR'];
+
+        function cleanNode(node) {
+            const children = Array.from(node.childNodes);
+            for (let child of children) {
+                if (child.nodeType === Node.ELEMENT_NODE) {
+                    if (!allowedTags.includes(child.tagName)) {
+                        const fragment = document.createDocumentFragment();
+                        while (child.firstChild) {
+                            fragment.appendChild(child.firstChild);
+                        }
+                        node.replaceChild(fragment, child);
+                        cleanNode(node);
+                    } else {
+                        [...child.attributes].forEach(attr => {
+                            if (child.tagName === 'A' && attr.name === 'href') return;
+                            child.removeAttribute(attr.name);
+                        });
+                        cleanNode(child);
+                    }
+                }
+            }
+        }
+
+        cleanNode(temp);
+
+        inputDiv.innerHTML = temp.innerHTML;
         updateOutputHTML();
     };
 });
