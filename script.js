@@ -2,9 +2,35 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputDiv = document.getElementById('inputText');
     const outputHTML = document.getElementById('outputHTML');
 
+    const allowedTags = ['STRONG', 'EM', 'U', 'A', 'P', 'H1', 'H2', 'H3', 'H4', 'BR'];
+
+    function cleanNode(node) {
+        const children = Array.from(node.childNodes);
+        for (let child of children) {
+            if (child.nodeType === Node.ELEMENT_NODE) {
+                if (!allowedTags.includes(child.tagName)) {
+                    const fragment = document.createDocumentFragment();
+                    while (child.firstChild) {
+                        fragment.appendChild(child.firstChild);
+                    }
+                    node.replaceChild(fragment, child);
+                    cleanNode(node);
+                } else {
+                    [...child.attributes].forEach(attr => {
+                        if (child.tagName === 'A' && attr.name === 'href') return;
+                        child.removeAttribute(attr.name);
+                    });
+                    cleanNode(child);
+                }
+            }
+        }
+    }
+
     function convertToHTMLFromContentEditable(htmlContent) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlContent;
+
+        cleanNode(tempDiv); // 🧹 Clean ngay tại đây
 
         const lines = [];
         for (const child of tempDiv.childNodes) {
@@ -39,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     inputDiv.addEventListener('input', updateOutputHTML);
 
-    // Dùng execCommand để giữ format cũ và thêm mới chồng lên
+    // Các nút định dạng
     window.applyFormat = function (format) {
         inputDiv.focus();
         if (format === 'uppercase' || format === 'capitalize') {
@@ -64,40 +90,6 @@ document.addEventListener('DOMContentLoaded', function () {
             document.execCommand('createLink', false, url);
         }
 
-        updateOutputHTML();
-    };
-
-    // Hàm clean chuẩn
-    window.cleanInput = function () {
-        const temp = document.createElement('div');
-        temp.innerHTML = inputDiv.innerHTML;
-
-        const allowedTags = ['STRONG', 'EM', 'U', 'A', 'P', 'H1', 'H2', 'H3', 'H4', 'BR'];
-
-        function cleanNode(node) {
-            const children = Array.from(node.childNodes);
-            for (let child of children) {
-                if (child.nodeType === Node.ELEMENT_NODE) {
-                    if (!allowedTags.includes(child.tagName)) {
-                        const fragment = document.createDocumentFragment();
-                        while (child.firstChild) {
-                            fragment.appendChild(child.firstChild);
-                        }
-                        node.replaceChild(fragment, child);
-                        cleanNode(node); // Đệ quy
-                    } else {
-                        [...child.attributes].forEach(attr => {
-                            if (child.tagName === 'A' && attr.name === 'href') return;
-                            child.removeAttribute(attr.name);
-                        });
-                        cleanNode(child); // Đệ quy con cháu
-                    }
-                }
-            }
-        }
-
-        cleanNode(temp);
-        inputDiv.innerHTML = temp.innerHTML;
         updateOutputHTML();
     };
 });
