@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const allowedTags = ['STRONG', 'EM', 'U', 'A', 'P', 'H1', 'H2', 'H3', 'H4', 'BR', 'UL', 'LI'];
 
-    // ✅ Làm sạch: giữ lại các thẻ được cho phép
+    // Làm sạch nội dung: chỉ giữ các thẻ được phép
     function cleanNode(node) {
         const children = Array.from(node.childNodes);
         for (let child of children) {
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ✅ Chuyển đổi nội dung có định dạng sang HTML SEO-friendly
+    // Chuyển nội dung từ contenteditable thành HTML sạch
     function convertToHTMLFromContentEditable(htmlContent) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlContent;
@@ -37,31 +37,25 @@ document.addEventListener('DOMContentLoaded', function () {
         let buffer = [];
 
         for (const child of tempDiv.childNodes) {
-            if (child.nodeType === Node.ELEMENT_NODE) {
-                const tagName = child.tagName;
+            if (child.nodeType === 1 && (child.tagName === 'UL' || child.tagName === 'OL')) {
+                lines.push(child.outerHTML);
+                continue;
+            }
 
-                if (tagName === 'UL' || tagName === 'OL') {
-                    lines.push(child.outerHTML);
-                    continue;
-                }
+            let content = '';
+            if (child.nodeType === 1 && child.tagName === 'DIV') {
+                content = child.innerHTML.trim();
+            } else if (child.nodeType === 3) {
+                content = child.textContent.trim();
+            } else if (child.nodeType === 1) {
+                content = child.outerHTML.trim();
+            }
 
-                if (tagName === 'DIV' || tagName === 'P') {
-                    const content = child.innerHTML.trim();
-                    if (content === '' && buffer.length) {
-                        lines.push(buffer.join(' ').trim());
-                        buffer = [];
-                    } else if (content !== '') {
-                        buffer.push(content);
-                    }
-                    continue;
-                }
-
-                lines.push(child.outerHTML.trim());
-            } else if (child.nodeType === Node.TEXT_NODE) {
-                const content = child.textContent.trim();
-                if (content !== '') {
-                    buffer.push(content);
-                }
+            if (content === '' && buffer.length) {
+                lines.push(buffer.join(' ').trim());
+                buffer = [];
+            } else if (content !== '') {
+                buffer.push(content);
             }
         }
 
@@ -69,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function () {
             lines.push(buffer.join(' ').trim());
         }
 
-        // ✅ Duyệt và định dạng thẻ heading
+        // Xử lý heading và chuẩn hóa nội dung
         const result = lines.map(rawLine => {
             const headingMatch = rawLine.match(/^(h\s*([1-4])[:\s])|^(heading\s*([1-4]))[:\s]?/i);
 
@@ -79,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return `<h${level}><strong>${title}</strong></h${level}>`;
             }
 
-            // Đã là <ul>, <ol> thì không bọc <p>
+            // Tránh bọc <p> quanh danh sách
             if (rawLine.startsWith('<ul') || rawLine.startsWith('<ol')) {
                 return rawLine;
             }
@@ -90,18 +84,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return result.join('\n');
     }
 
-    // ✅ Cập nhật kết quả
+    // Cập nhật output mỗi khi người dùng nhập
     function updateOutputHTML() {
         const html = convertToHTMLFromContentEditable(inputDiv.innerHTML);
-        outputHTML.value = html.trim();
+        outputHTML.value = html.trim() || '';
     }
 
-    // 🎯 Sự kiện người dùng
     inputDiv.addEventListener('input', updateOutputHTML);
     inputDiv.addEventListener('keyup', updateOutputHTML);
-    inputDiv.addEventListener('paste', () => setTimeout(updateOutputHTML, 100));
+    inputDiv.addEventListener('paste', () => {
+        setTimeout(updateOutputHTML, 30); // Đợi paste hoàn tất
+    });
 
-    // 🎯 Các nút định dạng
+    // Các nút định dạng
     window.applyFormat = function (format) {
         inputDiv.focus();
         const sel = window.getSelection();
@@ -114,8 +109,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (format === 'uppercase') {
             document.execCommand('insertText', false, selectedText.toUpperCase());
         } else if (format === 'capitalize') {
-            const capitalized = selectedText.replace(/\b\w/g, c => c.toUpperCase());
-            document.execCommand('insertText', false, capitalized);
+            const cap = selectedText.replace(/\b\w/g, c => c.toUpperCase());
+            document.execCommand('insertText', false, cap);
         } else if (format === 'bold') {
             document.execCommand('bold');
         } else if (format === 'italic') {
@@ -125,6 +120,25 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!url) return;
             document.execCommand('createLink', false, url);
         }
+
+        updateOutputHTML();
+    };
+
+    // Nút bọc heading thủ công
+    window.wrapWithHeading = function (level) {
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+        const range = selection.getRangeAt(0);
+        const selectedText = range.toString().trim();
+        if (!selectedText) return;
+
+        const heading = document.createElement(`h${level}`);
+        const strong = document.createElement('strong');
+        strong.textContent = selectedText;
+        heading.appendChild(strong);
+
+        range.deleteContents();
+        range.insertNode(heading);
 
         updateOutputHTML();
     };
