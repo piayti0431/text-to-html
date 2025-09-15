@@ -1,79 +1,79 @@
-// script.js
-
 const inputDiv = document.getElementById("inputText");
-const outputArea = document.getElementById("outputHTML");
+const outputTextarea = document.getElementById("outputHTML");
 
-function updateHTML() {
-    let html = "";
-    const childNodes = inputDiv.childNodes;
+// Bắt sự kiện paste
+inputDiv.addEventListener("paste", function (e) {
+    e.preventDefault();
 
-    childNodes.forEach((node) => {
-        if (node.nodeType === Node.TEXT_NODE) {
-            const lines = node.textContent.split("\n");
-            lines.forEach((line) => {
-                if (line.trim() !== "") {
-                    html += `<p>${escapeHTML(line)}</p>`;
-                }
-            });
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-            html += node.outerHTML;
-        }
-    });
+    const clipboardData = (e.clipboardData || window.clipboardData);
+    const htmlData = clipboardData.getData("text/html");
+    const textData = clipboardData.getData("text/plain");
 
-    // Clean up nested block tags like <div><p>text</p></div>
-    html = html.replace(/<div><p>/g, '<p>')
-               .replace(/<\/p><\/div>/g, '</p>');
+    if (htmlData) {
+        // Nếu là nội dung có định dạng từ Word, Google Docs, v.v.
+        const cleanedHTML = sanitizeHTML(htmlData);
+        pasteHtmlAtCaret(cleanedHTML);
+    } else {
+        // Nếu là text thường
+        document.execCommand("insertText", false, textData);
+    }
 
-    outputArea.value = html;
+    setTimeout(updateOutput, 100); // Delay nhỏ để cập nhật đúng
+});
+
+// Hàm dán HTML tại vị trí con trỏ
+function pasteHtmlAtCaret(html) {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+
+    const el = document.createElement("div");
+    el.innerHTML = html;
+
+    const frag = document.createDocumentFragment();
+    let node;
+    while ((node = el.firstChild)) {
+        frag.appendChild(node);
+    }
+
+    range.insertNode(frag);
+    sel.collapseToEnd();
 }
 
-function escapeHTML(text) {
+// Hàm loại bỏ các thẻ không mong muốn như <div>, giữ lại <strong>, <em>, <h1>, <ul>, v.v.
+function sanitizeHTML(input) {
+    const allowedTags = ['p', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'br'];
     const div = document.createElement("div");
-    div.innerText = text;
+    div.innerHTML = input;
+
+    const removeDisallowed = (node) => {
+        const children = Array.from(node.childNodes);
+        children.forEach(child => {
+            if (child.nodeType === 1) {
+                // Nếu là element
+                if (!allowedTags.includes(child.tagName.toLowerCase())) {
+                    const fragment = document.createDocumentFragment();
+                    while (child.firstChild) {
+                        fragment.appendChild(child.firstChild);
+                    }
+                    node.replaceChild(fragment, child);
+                } else {
+                    removeDisallowed(child); // Đệ quy
+                }
+            }
+        });
+    };
+
+    removeDisallowed(div);
     return div.innerHTML;
 }
 
-inputDiv.addEventListener("input", updateHTML);
-
-inputDiv.addEventListener("paste", function (e) {
-    e.preventDefault();
-    const text = (e.clipboardData || window.clipboardData).getData("text/plain");
-    document.execCommand("insertText", false, text);
-});
-
-function applyFormat(command, value = null) {
-    document.execCommand(command, false, value);
-    updateHTML();
-}
-
-function wrapWithHeading(level) {
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return;
-    const range = selection.getRangeAt(0);
-    const content = range.extractContents();
-    const heading = document.createElement(`h${level}`);
-    heading.appendChild(content);
-    range.insertNode(heading);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    updateHTML();
-}
-
-function wrapWithList() {
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    const content = range.extractContents();
-    const listItems = content.textContent
-        .split("\n")
-        .filter(line => line.trim() !== "")
-        .map(line => `<li>${escapeHTML(line)}</li>`)
-        .join("");
-
-    const ul = document.createElement("ul");
-    ul.innerHTML = listItems;
-    range.deleteContents();
-    range.insertNode(ul);
-    updateHTML();
+// Cập nhật kết quả HTML trong textarea output
+function updateOutput() {
+    const html = inputDiv.innerHTML
+        .replace(/\s?data-[^=]+="[^"]*"/g, '') // xóa thuộc tính không cần thiết
+        .replace(/ style="[^"]*"/g, '');       // xóa style inline
+    outputTextarea.value = html.trim();
 }
