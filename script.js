@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const inputText = document.getElementById('inputText');
+    const inputDiv = document.getElementById('inputText');
     const outputHTML = document.getElementById('outputHTML');
 
     function convertToHTML(text) {
@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', function () {
         return lines.map(line => {
             const trimmed = line.trim();
 
-            // Nhận biết các dạng heading như H1, heading 2, H 3, heading4:
             const headingMatch = trimmed.match(/^(h\s*([1-4])[:\s])|^(heading\s*([1-4]))[:\s]?/i);
             if (headingMatch) {
                 const level = headingMatch[2] || headingMatch[4];
@@ -19,30 +18,42 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('\n');
     }
 
-    inputText.addEventListener('input', function () {
-        const html = convertToHTML(inputText.value);
+    function updateOutputHTML() {
+        const text = inputDiv.innerText;
+        const html = convertToHTML(text);
         outputHTML.value = html;
-    });
+    }
+
+    inputDiv.addEventListener('input', updateOutputHTML);
 
     window.applyFormat = function (format) {
-        const start = inputText.selectionStart;
-        const end = inputText.selectionEnd;
-        const selected = inputText.value.slice(start, end);
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
 
-        if (!selected) return;
+        const range = selection.getRangeAt(0);
+        const selectedText = range.toString();
+        if (!selectedText) return;
 
-        let formatted = selected;
         if (format === 'uppercase') {
-            formatted = selected.toUpperCase();
-        } else if (format === 'bold') {
-            formatted = `<b>${selected}</b>`;
-        } else if (format === 'italic') {
-            formatted = `<i>${selected}</i>`;
+            document.execCommand('insertText', false, selectedText.toUpperCase());
         } else if (format === 'capitalize') {
-            formatted = selected.replace(/\b\w/g, c => c.toUpperCase());
+            const capitalized = selectedText.replace(/\b\w/g, c => c.toUpperCase());
+            document.execCommand('insertText', false, capitalized);
+        } else {
+            // Wrap with tag
+            let wrapperTag = '';
+            if (format === 'bold') wrapperTag = 'b';
+            if (format === 'italic') wrapperTag = 'i';
+
+            if (wrapperTag) {
+                const el = document.createElement(wrapperTag);
+                el.textContent = selectedText;
+                range.deleteContents();
+                range.insertNode(el);
+                selection.collapseToEnd();
+            }
         }
 
-        inputText.setRangeText(formatted, start, end, 'end');
-        inputText.dispatchEvent(new Event('input'));
+        updateOutputHTML();
     };
 });
