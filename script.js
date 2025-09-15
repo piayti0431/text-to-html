@@ -2,7 +2,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputDiv = document.getElementById('inputText');
     const outputHTML = document.getElementById('outputHTML');
 
-    // Chuyển nội dung HTML thành đoạn HTML có thẻ <p>, <h1>..., giữ các thẻ quan trọng
     function convertToHTMLFromContentEditable(htmlContent) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlContent;
@@ -33,60 +32,42 @@ document.addEventListener('DOMContentLoaded', function () {
         return lines.join('\n');
     }
 
-    // Cập nhật ô HTML
     function updateOutputHTML() {
         const html = convertToHTMLFromContentEditable(inputDiv.innerHTML);
         outputHTML.value = html;
     }
 
-    // Gõ là cập nhật
     inputDiv.addEventListener('input', updateOutputHTML);
 
-    // Nút định dạng
+    // Dùng execCommand để giữ format cũ và thêm mới chồng lên
     window.applyFormat = function (format) {
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
+        inputDiv.focus();
+        if (format === 'uppercase' || format === 'capitalize') {
+            const sel = window.getSelection();
+            if (!sel.rangeCount) return;
+            const range = sel.getRangeAt(0);
+            const selected = range.toString();
+            if (!selected) return;
 
-        const range = selection.getRangeAt(0);
-        const selectedText = range.toString();
-        if (!selectedText) return;
+            const modified = format === 'uppercase'
+                ? selected.toUpperCase()
+                : selected.replace(/\b\w/g, c => c.toUpperCase());
 
-        let wrapper;
-
-        if (format === 'uppercase') {
-            const span = document.createElement('span');
-            span.textContent = selectedText.toUpperCase();
-            wrapper = span;
-        } else if (format === 'capitalize') {
-            const span = document.createElement('span');
-            span.textContent = selectedText.replace(/\b\w/g, c => c.toUpperCase());
-            wrapper = span;
+            document.execCommand('insertText', false, modified);
         } else if (format === 'bold') {
-            wrapper = document.createElement('strong');
-            wrapper.textContent = selectedText;
+            document.execCommand('bold', false, null);
         } else if (format === 'italic') {
-            wrapper = document.createElement('em');
-            wrapper.textContent = selectedText;
+            document.execCommand('italic', false, null);
         } else if (format === 'link') {
             const url = prompt("Nhập URL:", "https://");
             if (!url) return;
-            wrapper = document.createElement('a');
-            wrapper.href = url;
-            wrapper.textContent = selectedText;
+            document.execCommand('createLink', false, url);
         }
 
-        if (wrapper) {
-            range.deleteContents();
-            range.insertNode(wrapper);
-            range.setStartAfter(wrapper);
-            range.setEndAfter(wrapper);
-            selection.removeAllRanges();
-            selection.addRange(range);
-            updateOutputHTML();
-        }
+        updateOutputHTML();
     };
 
-    // Nút Clean: loại bỏ các thẻ không cần thiết (span, style, class, ...)
+    // Hàm clean chuẩn
     window.cleanInput = function () {
         const temp = document.createElement('div');
         temp.innerHTML = inputDiv.innerHTML;
@@ -103,20 +84,19 @@ document.addEventListener('DOMContentLoaded', function () {
                             fragment.appendChild(child.firstChild);
                         }
                         node.replaceChild(fragment, child);
-                        cleanNode(node);
+                        cleanNode(node); // Đệ quy
                     } else {
                         [...child.attributes].forEach(attr => {
                             if (child.tagName === 'A' && attr.name === 'href') return;
                             child.removeAttribute(attr.name);
                         });
-                        cleanNode(child);
+                        cleanNode(child); // Đệ quy con cháu
                     }
                 }
             }
         }
 
         cleanNode(temp);
-
         inputDiv.innerHTML = temp.innerHTML;
         updateOutputHTML();
     };
