@@ -3,71 +3,113 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="Chuyển văn bản sang HTML chuẩn SEO" />
   <title>Text to HTML</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Arial, sans-serif;
-      padding: 20px;
+      margin: 0;
+      padding: 40px;
+      background-color: #fff;
+      color: #111;
     }
-    textarea {
-      width: 48%;
-      height: 400px;
-      padding: 10px;
-      font-family: monospace;
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 30px;
     }
+
     .container {
       display: flex;
       justify-content: space-between;
-      gap: 2%;
+      gap: 40px;
     }
+
+    .box {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .box h3 {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    textarea {
+      height: 400px;
+      width: 100%;
+      padding: 12px;
+      font-family: Consolas, monospace;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      resize: vertical;
+    }
+
+    .buttons {
+      margin-top: 20px;
+    }
+
     button {
-      margin: 10px 5px 0 0;
-      padding: 10px 15px;
+      padding: 10px 20px;
+      font-size: 14px;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 4px;
       cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #388e3c;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>📝 Chuyển đổi văn bản sang HTML</h1>
+  <h1>📋 Chuyển đổi văn bản sang HTML</h1>
 
   <div class="container">
-    <div>
-      <h3>📥 Văn bản đầu vào:</h3>
+    <div class="box">
+      <h3>📅 Văn bản đầu vào:</h3>
       <textarea id="inputText" placeholder="Dán văn bản tại đây..."></textarea>
     </div>
-    <div>
-      <h3>📤 HTML đã chuyển đổi:</h3>
+    <div class="box">
+      <h3>📄 HTML đã chuyển đổi:</h3>
       <textarea id="outputHTML" readonly></textarea>
     </div>
   </div>
 
-  <button onclick="convertToHTML()">🔁 Chuyển đổi</button>
-  <button onclick="copyHTML()">📋 Copy HTML</button>
-  <button onclick="downloadHTML()">💾 Tải về HTML</button>
+  <div class="buttons">
+    <button onclick="copyHTML()">📋 Copy HTML</button>
+  </div>
 
   <script>
+    const input = document.getElementById("inputText");
+    const output = document.getElementById("outputHTML");
+
     function convertToHTML() {
-      const input = document.getElementById('inputText').value.trim();
-      const lines = input.split('\n').filter(line => line.trim() !== '');
+      const lines = input.value.split('\n').filter(line => line.trim() !== '');
       const htmlLines = lines.map(line => `<p>${line.trim()}</p>`);
-      const fullHTML = htmlLines.join('\n');
-      document.getElementById('outputHTML').value = fullHTML;
+      output.value = htmlLines.join('\n');
     }
 
+    input.addEventListener("input", convertToHTML);
+
     function copyHTML() {
-      const output = document.getElementById('outputHTML');
       output.select();
       document.execCommand("copy");
       alert("✅ HTML đã được sao chép!");
-    }
-
-    function downloadHTML() {
-      const blob = new Blob([document.getElementById('outputHTML').value], { type: "text/html" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "bai-viet.html";
-      link.click();
     }
   </script>
 </body>
