@@ -1,29 +1,31 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>Chuyển đổi văn bản sang HTML</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chuyển đổi văn bản sang HTML</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>📝 Text to HTML</h1>
-    <div class="container">
-        <div class="column">
-            <label for="inputText">📄 Văn bản đầu vào:</label>
-            <div id="inputText" contenteditable="true" class="editable" placeholder="Dán văn bản tại đây..."></div>
-        </div>
-        <div class="column">
-            <label for="outputHTML">📄 HTML đã chuyển đổi:</label>
-            <textarea id="outputHTML" readonly></textarea>
-        </div>
+  <h1>📝 Text to HTML</h1>
+  <div class="container">
+    <div class="column">
+      <label for="inputText">📄 Văn bản đầu vào:</label>
+      <div id="inputText" contenteditable="true" class="editable" spellcheck="false"></div>
     </div>
-    <div class="button-group">
-        <button onclick="applyFormat('uppercase')">🔠 IN HOA</button>
-        <button onclick="applyFormat('bold')">🅱️ <strong>In ĐẬM</strong></button>
-        <button onclick="applyFormat('italic')">👓 <em>In nghiêng</em></button>
-        <button onclick="applyFormat('capitalize')">🔤 Viết hoa chữ cái đầu</button>
-        <button onclick="applyFormat('link')">🔗 CHÈN LINK</button>
+    <div class="column">
+      <label for="outputHTML">📄 HTML đã chuyển đổi:</label>
+      <textarea id="outputHTML" readonly></textarea>
     </div>
-    <script src="script.js"></script>
+  </div>
+  <div class="button-group">
+    <button onclick="applyFormat('uppercase')">🔠 IN HOA</button>
+    <button onclick="applyFormat('bold')">🅱️ <strong>In ĐẬM</strong></button>
+    <button onclick="applyFormat('italic')">👓 <em>In nghiêng</em></button>
+    <button onclick="applyFormat('capitalize')">🔤 Viết hoa chữ cái đầu</button>
+    <button onclick="applyFormat('link')">🔗 CHÈN LINK</button>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
