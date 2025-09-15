@@ -2,36 +2,52 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputDiv = document.getElementById('inputText');
     const outputHTML = document.getElementById('outputHTML');
 
-    function convertToHTML(text) {
-        const lines = text.split('\n');
-        return lines.map(line => {
-            const trimmed = line.trim();
+    // Chuyển nội dung trực quan thành HTML chuẩn với <p>, <h1>... và giữ lại <b>, <i>, <a>
+    function convertToHTMLFromContentEditable(htmlContent) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlContent;
 
-            const headingMatch = trimmed.match(/^(h\s*([1-4])[:\s])|^(heading\s*([1-4]))[:\s]?/i);
-            if (headingMatch) {
-                const level = headingMatch[2] || headingMatch[4];
-                const content = trimmed.replace(headingMatch[0], '').trim();
-                return `<h${level}>${content}</h${level}>`;
+        const lines = [];
+        for (const child of tempDiv.childNodes) {
+            let lineHTML = '';
+            if (child.nodeType === 1 && child.tagName === 'DIV') {
+                lineHTML = child.innerHTML.trim();
+            } else if (child.nodeType === 3 && child.textContent.trim()) {
+                lineHTML = child.textContent.trim();
+            } else if (child.nodeType === 1) {
+                lineHTML = child.outerHTML.trim();
             }
 
-            return `<p>${trimmed}</p>`;
-        }).join('\n');
+            if (lineHTML) {
+                const headingMatch = lineHTML.match(/^(h\s*([1-4])[:\s])|^(heading\s*([1-4]))[:\s]?/i);
+                if (headingMatch) {
+                    const level = headingMatch[2] || headingMatch[4];
+                    const content = lineHTML.replace(headingMatch[0], '').trim();
+                    lines.push(`<h${level}>${content}</h${level}>`);
+                } else {
+                    lines.push(`<p>${lineHTML}</p>`);
+                }
+            }
+        }
+
+        return lines.join('\n');
     }
 
+    // Cập nhật kết quả HTML khi nhập
     function updateOutputHTML() {
-        const text = inputDiv.innerText;
-        const html = convertToHTML(text);
+        const html = convertToHTMLFromContentEditable(inputDiv.innerHTML);
         outputHTML.value = html;
     }
 
     inputDiv.addEventListener('input', updateOutputHTML);
 
+    // Xử lý các nút định dạng văn bản
     window.applyFormat = function (format) {
         const selection = window.getSelection();
         if (!selection.rangeCount) return;
 
         const range = selection.getRangeAt(0);
-        const selectedText = range.toString();
+        const selectedText = selection.toString();
         if (!selectedText) return;
 
         if (format === 'uppercase') {
@@ -39,21 +55,25 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (format === 'capitalize') {
             const capitalized = selectedText.replace(/\b\w/g, c => c.toUpperCase());
             document.execCommand('insertText', false, capitalized);
-        } else {
-            // Wrap with tag
-            let wrapperTag = '';
-            if (format === 'bold') wrapperTag = 'b';
-            if (format === 'italic') wrapperTag = 'i';
+        } else if (['bold', 'italic', 'link'].includes(format)) {
+            const tag = format === 'bold' ? 'b' :
+                        format === 'italic' ? 'i' :
+                        format === 'link' ? 'a' : null;
 
-            if (wrapperTag) {
-                const el = document.createElement(wrapperTag);
-                el.textContent = selectedText;
-                range.deleteContents();
-                range.insertNode(el);
-                selection.collapseToEnd();
+            const newNode = document.createElement(tag);
+
+            if (format === 'link') {
+                const url = prompt("Nhập URL liên kết:", "https://");
+                if (!url) return;
+                newNode.setAttribute('href', url);
             }
+
+            newNode.textContent = selectedText;
+            range.deleteContents();
+            range.insertNode(newNode);
         }
 
+        // Sau khi định dạng, cập nhật lại HTML
         updateOutputHTML();
     };
 });
