@@ -2,100 +2,67 @@ document.addEventListener('DOMContentLoaded', function () {
     const inputDiv = document.getElementById('inputText');
     const outputHTML = document.getElementById('outputHTML');
 
-    const allowedTags = ['STRONG', 'EM', 'U', 'A', 'P', 'H1', 'H2', 'H3', 'H4', 'BR'];
+    const allowedTags = ['STRONG', 'EM', 'U', 'A', 'BR'];
 
-    // 🧼 Làm sạch node: giữ lại thẻ hợp lệ, chuẩn SEO (b -> strong, i -> em)
+    // 🧼 Làm sạch HTML: giữ lại thẻ cần thiết
     function cleanNode(node) {
         const children = Array.from(node.childNodes);
         for (let child of children) {
             if (child.nodeType === Node.ELEMENT_NODE) {
-                // ✨ Chuyển <b> -> <strong>, <i> -> <em>
-                if (child.tagName === 'B') {
-                    const strong = document.createElement('strong');
-                    while (child.firstChild) strong.appendChild(child.firstChild);
-                    node.replaceChild(strong, child);
-                    cleanNode(strong);
-                    continue;
-                }
-                if (child.tagName === 'I') {
-                    const em = document.createElement('em');
-                    while (child.firstChild) em.appendChild(child.firstChild);
-                    node.replaceChild(em, child);
-                    cleanNode(em);
-                    continue;
-                }
-
-                // ❌ Loại thẻ không hợp lệ
+                // Nếu không thuộc thẻ cho phép thì gỡ
                 if (!allowedTags.includes(child.tagName)) {
                     const fragment = document.createDocumentFragment();
                     while (child.firstChild) {
                         fragment.appendChild(child.firstChild);
                     }
                     node.replaceChild(fragment, child);
-                    cleanNode(node);
+                    cleanNode(node); // tiếp tục làm sạch
                 } else {
-                    // ⚙️ Xoá mọi thuộc tính (trừ href trong <a>)
+                    // Xoá hết attribute (trừ href của a)
                     [...child.attributes].forEach(attr => {
                         if (child.tagName === 'A' && attr.name === 'href') return;
                         child.removeAttribute(attr.name);
                     });
-                    cleanNode(child);
+                    cleanNode(child); // tiếp tục làm sạch trong
                 }
             }
         }
     }
 
-    // ✅ Chuyển HTML từ contenteditable sang HTML sạch
+    // 🧾 Chuyển đổi nội dung đã clean thành HTML
     function convertToHTMLFromContentEditable(htmlContent) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlContent;
 
-        cleanNode(tempDiv); // Làm sạch rác
+        cleanNode(tempDiv); // dọn sạch HTML
 
-        const lines = [];
-        for (const child of tempDiv.childNodes) {
-            let lineHTML = '';
-            if (child.nodeType === 1 && child.tagName === 'DIV') {
-                lineHTML = child.innerHTML.trim();
-            } else if (child.nodeType === 3 && child.textContent.trim()) {
-                lineHTML = child.textContent.trim();
-            } else if (child.nodeType === 1) {
-                lineHTML = child.outerHTML.trim();
-            }
-
-            if (lineHTML) {
-                const headingMatch = lineHTML.match(/^(h\s*([1-4])[:\s])|^(heading\s*([1-4]))[:\s]?/i);
-                if (headingMatch) {
-                    const level = headingMatch[2] || headingMatch[4];
-                    const content = lineHTML.replace(headingMatch[0], '').trim();
-                    lines.push(`<h${level}>${content}</h${level}>`);
-                } else {
-                    lines.push(`<p>${lineHTML}</p>`);
-                }
-            }
-        }
-
-        return lines.join('\n');
+        return tempDiv.innerHTML.trim(); // không chia dòng
     }
 
-    // 📥 Cập nhật HTML kết quả
+    // 🖥️ Cập nhật nội dung output
     function updateOutputHTML() {
         const html = convertToHTMLFromContentEditable(inputDiv.innerHTML);
         outputHTML.value = html;
     }
 
-    // 🧠 Lắng nghe mọi thay đổi
+    // 🎯 Gõ trực tiếp: cập nhật ngay
     inputDiv.addEventListener('input', updateOutputHTML);
-    inputDiv.addEventListener('paste', () => {
-        setTimeout(updateOutputHTML, 10); // đợi paste hoàn tất
-    });
-    inputDiv.addEventListener('keyup', updateOutputHTML);
 
-    // 🔘 Các nút định dạng
+    // 🧩 Paste từ Google Docs hay MS Word
+    inputDiv.addEventListener('paste', () => {
+        // Delay nhẹ để đảm bảo nội dung được paste xong
+        setTimeout(() => {
+            updateOutputHTML();
+        }, 50);
+    });
+
+    // 🎛️ Các nút định dạng
     window.applyFormat = function (format) {
         inputDiv.focus();
+
         const selection = window.getSelection();
         if (!selection.rangeCount) return;
+
         const range = selection.getRangeAt(0);
         const selectedText = selection.toString();
         if (!selectedText) return;
@@ -107,15 +74,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
             document.execCommand('insertText', false, modified);
         } else if (format === 'bold') {
-            document.execCommand('bold', false, null); // sẽ chuyển <b> → <strong> khi clean
+            document.execCommand('bold', false, null); // kết hợp với clean để ra <strong>
         } else if (format === 'italic') {
-            document.execCommand('italic', false, null); // sẽ chuyển <i> → <em> khi clean
+            document.execCommand('italic', false, null); // sẽ thành <em>
         } else if (format === 'link') {
             const url = prompt("Nhập URL liên kết:", "https://");
-            if (!url) return;
-            document.execCommand('createLink', false, url);
+            if (url) {
+                document.execCommand('createLink', false, url);
+            }
         }
 
+        // Sau mỗi thay đổi, cập nhật lại output
         updateOutputHTML();
     };
 });
