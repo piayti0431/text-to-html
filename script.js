@@ -1,13 +1,15 @@
-
 function convertToHTML(text) {
     const lines = text.split('\n');
     return lines.map(line => {
         const trimmed = line.trim();
 
-        const headingMatch = trimmed.match(/^(h\s*([1-4])[:\s])|^(heading\s*([1-4]))[:\s]?/i);
-        if (headingMatch) {
-            const level = headingMatch[2] || headingMatch[4];
-            const content = trimmed.replace(headingMatch[0], '').trim();
+        // Nhận diện: H1, h1, Heading 1, heading1, Tiêu đề 1, H 1, H1:
+        const headingRegex = /^(H(?:eading)?\s*([1-4])[:\s]?|Tiêu đề\s*([1-4]))/i;
+        const match = trimmed.match(headingRegex);
+
+        if (match) {
+            const level = match[2] || match[3];
+            const content = trimmed.replace(match[0], '').trim();
             return `<h${level}>${content}</h${level}>`;
         }
 
@@ -25,18 +27,26 @@ function applyFormat(format) {
     const textarea = document.getElementById('outputHTML');
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const selected = textarea.value.slice(start, end);
 
-    let formatted = selected;
-    if (format === 'uppercase') {
-        formatted = selected.toUpperCase();
-    } else if (format === 'bold') {
-        formatted = `<b>${selected}</b>`;
-    } else if (format === 'italic') {
-        formatted = `<i>${selected}</i>`;
-    } else if (format === 'capitalize') {
-        formatted = selected.replace(/\b\w/g, c => c.toUpperCase());
+    if (start === end) return; // Nếu không bôi đen thì không làm gì
+
+    const selectedText = textarea.value.slice(start, end);
+    let formattedText = selectedText;
+
+    switch (format) {
+        case 'bold':
+            formattedText = `<b>${selectedText}</b>`;
+            break;
+        case 'italic':
+            formattedText = `<i>${selectedText}</i>`;
+            break;
+        case 'underline':
+            formattedText = `<u>${selectedText}</u>`;
+            break;
+        case 'capitalize':
+            formattedText = selectedText.replace(/\b\w/g, c => c.toUpperCase());
+            break;
     }
 
-    textarea.setRangeText(formatted, start, end, 'end');
+    textarea.setRangeText(formattedText, start, end, 'end');
 }
