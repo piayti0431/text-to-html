@@ -4,37 +4,53 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const allowedTags = ['STRONG', 'EM', 'U', 'A', 'P', 'H1', 'H2', 'H3', 'H4', 'BR'];
 
-    // 🧼 Hàm làm sạch các thẻ không được phép
+    // 🧼 Làm sạch node: giữ lại thẻ hợp lệ, chuẩn SEO (b -> strong, i -> em)
     function cleanNode(node) {
         const children = Array.from(node.childNodes);
         for (let child of children) {
             if (child.nodeType === Node.ELEMENT_NODE) {
-                // Loại bỏ các thẻ không nằm trong danh sách cho phép
+                // ✨ Chuyển <b> -> <strong>, <i> -> <em>
+                if (child.tagName === 'B') {
+                    const strong = document.createElement('strong');
+                    while (child.firstChild) strong.appendChild(child.firstChild);
+                    node.replaceChild(strong, child);
+                    cleanNode(strong);
+                    continue;
+                }
+                if (child.tagName === 'I') {
+                    const em = document.createElement('em');
+                    while (child.firstChild) em.appendChild(child.firstChild);
+                    node.replaceChild(em, child);
+                    cleanNode(em);
+                    continue;
+                }
+
+                // ❌ Loại thẻ không hợp lệ
                 if (!allowedTags.includes(child.tagName)) {
                     const fragment = document.createDocumentFragment();
                     while (child.firstChild) {
                         fragment.appendChild(child.firstChild);
                     }
                     node.replaceChild(fragment, child);
-                    cleanNode(node); // Làm sạch tiếp
+                    cleanNode(node);
                 } else {
-                    // Loại bỏ toàn bộ thuộc tính (trừ href của <a>)
+                    // ⚙️ Xoá mọi thuộc tính (trừ href trong <a>)
                     [...child.attributes].forEach(attr => {
                         if (child.tagName === 'A' && attr.name === 'href') return;
                         child.removeAttribute(attr.name);
                     });
-                    cleanNode(child); // Tiếp tục kiểm tra bên trong
+                    cleanNode(child);
                 }
             }
         }
     }
 
-    // ✅ Hàm chuyển contenteditable HTML thành HTML sạch và chuẩn
+    // ✅ Chuyển HTML từ contenteditable sang HTML sạch
     function convertToHTMLFromContentEditable(htmlContent) {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = htmlContent;
 
-        cleanNode(tempDiv); // Dọn sạch nội dung
+        cleanNode(tempDiv); // Làm sạch rác
 
         const lines = [];
         for (const child of tempDiv.childNodes) {
@@ -48,7 +64,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (lineHTML) {
-                // Heading nhận dạng từ đầu dòng
                 const headingMatch = lineHTML.match(/^(h\s*([1-4])[:\s])|^(heading\s*([1-4]))[:\s]?/i);
                 if (headingMatch) {
                     const level = headingMatch[2] || headingMatch[4];
@@ -63,31 +78,28 @@ document.addEventListener('DOMContentLoaded', function () {
         return lines.join('\n');
     }
 
-    // 📥 Cập nhật kết quả HTML bên phải
+    // 📥 Cập nhật HTML kết quả
     function updateOutputHTML() {
         const html = convertToHTMLFromContentEditable(inputDiv.innerHTML);
         outputHTML.value = html;
     }
 
-    // 👂 Theo dõi mọi thao tác người dùng
+    // 🧠 Lắng nghe mọi thay đổi
     inputDiv.addEventListener('input', updateOutputHTML);
     inputDiv.addEventListener('paste', () => {
-        setTimeout(updateOutputHTML, 10); // Đợi paste xong rồi mới xử lý
+        setTimeout(updateOutputHTML, 10); // đợi paste hoàn tất
     });
     inputDiv.addEventListener('keyup', updateOutputHTML);
 
-    // 🔘 Hàm định dạng khi nhấn nút
+    // 🔘 Các nút định dạng
     window.applyFormat = function (format) {
         inputDiv.focus();
-
         const selection = window.getSelection();
         if (!selection.rangeCount) return;
-
         const range = selection.getRangeAt(0);
         const selectedText = selection.toString();
         if (!selectedText) return;
 
-        // Chuyển đổi kiểu
         if (format === 'uppercase' || format === 'capitalize') {
             const modified = format === 'uppercase'
                 ? selectedText.toUpperCase()
@@ -95,10 +107,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             document.execCommand('insertText', false, modified);
         } else if (format === 'bold') {
-            document.execCommand('formatBlock', false, 'strong');
-            document.execCommand('bold', false, null); // Dùng strong nhưng giữ hỗ trợ
+            document.execCommand('bold', false, null); // sẽ chuyển <b> → <strong> khi clean
         } else if (format === 'italic') {
-            document.execCommand('italic', false, null); // Chuyển thành <em> sau khi clean
+            document.execCommand('italic', false, null); // sẽ chuyển <i> → <em> khi clean
         } else if (format === 'link') {
             const url = prompt("Nhập URL liên kết:", "https://");
             if (!url) return;
